@@ -1,0 +1,14 @@
+{
+  "primary": [
+    {
+      "version": "v1",
+      "isEnable": true
+    }
+  ],
+  "api": [
+    {
+      "version": "v1",
+      "isEnable": true
+    }
+  ]
+}

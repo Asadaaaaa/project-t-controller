@@ -1,0 +1,8 @@
+export { default as AuthController } from './Auth.controller.js';
+export { default as UserController } from './User.controller.js';
+export { default as RoleController } from './Role.controller.js';
+export { default as PermissionController } from './Permission.controller.js';
+export { default as WhatsappController } from './Whatsapp.controller.js';
+export { default as SummaryController } from './Summary.controller.js';
+export { default as TodoController } from './Todo.controller.js';
+export { default as DashboardController } from './Dashboard.controller.js';
