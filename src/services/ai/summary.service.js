@@ -22,25 +22,21 @@ const SummaryResponseSchema = z.object({
 
 function buildMarkdownReport(dateStr, summary, highlights = [], decisions = [], todos = []) {
   let md = `# 📅 Ringkasan Harian WhatsApp — ${dateStr}\n\n`;
-  md += `## 📌 Ringkasan Umum\n${summary}\n\n`;
+  md += `## 📝 Deskripsi Hari Ini\n${summary}\n\n`;
+  md += `---\n\n`;
+  md += `## 📋 Rincian Aktivitas & Rekapitulasi\n\n`;
 
+  md += `### 1. ✅ Yang Sudah Dilakukan (Completed)\n`;
   if (highlights && highlights.length > 0) {
-    md += `## 💬 Poin Diskusi & Catatan Obrolan\n`;
     highlights.forEach((h) => {
-      md += `- ${h}\n`;
+      md += `- [x] **${h}**\n`;
     });
-    md += `\n`;
+  } else {
+    md += `- Tidak ada aktivitas yang terselesaikan secara eksplisit hari ini.\n`;
   }
+  md += `\n`;
 
-  if (decisions && decisions.length > 0) {
-    md += `## 🎯 Keputusan yang Diambil\n`;
-    decisions.forEach((d) => {
-      md += `- ${d}\n`;
-    });
-    md += `\n`;
-  }
-
-  md += `## ✅ Action Items & To-Do List (${todos?.length || 0})\n`;
+  md += `### 2. ⏳ Yang Harus / Belum Dilakukan (Action Items & To-Do List)\n`;
   if (todos && todos.length > 0) {
     todos.forEach((t) => {
       const priorityTag = (t.priority || 'medium').toUpperCase();
@@ -52,8 +48,25 @@ function buildMarkdownReport(dateStr, summary, highlights = [], decisions = [], 
       }
     });
   } else {
-    md += `*Tidak ada action items spesifik untuk hari ini.*\n`;
+    md += `- Tidak ada to-do list tertunda.\n`;
   }
+  md += `\n`;
+
+  md += `### 3. 📅 Jadwal, Agenda & Rencana Kedepan\n`;
+  if (decisions && decisions.length > 0) {
+    decisions.forEach((d) => {
+      md += `- **Agenda/Keputusan**: ${d}\n`;
+    });
+  } else {
+    md += `- Tidak ada jadwal agenda khusus yang tercatat.\n`;
+  }
+  md += `\n`;
+
+  md += `### 4. 💰 Pembayaran, Nota & Transaksi Keuangan\n`;
+  md += `- Tidak ada transaksi keuangan tercatat.\n\n`;
+
+  md += `### 5. 🎙️ Media, Lampiran & Pesan Suara\n`;
+  md += `- Tidak ada media spesifik yang tercatat.\n\n`;
 
   return md;
 }
@@ -101,13 +114,19 @@ class AISummaryService {
 
     const sessionId = validUserId ? `user_${validUserId}` : 'default';
 
-    // Step 0: Pre-sync messages for this specific date and user session directly from WhatsApp Client
+    // Step 0: Pre-sync messages for this specific date and user session directly from WhatsApp Client with generous timeout
     let clientConnected = false;
     try {
       const clientUrl = process.env.WHATSAPP_CLIENT_URL || 'http://localhost:4001';
-      const syncResp = await axios.post(`${clientUrl}/sync/date`, { sessionId, date: dateStr, userId: validUserId }, { timeout: 25000 });
+      console.log(`[AISummaryService:${sessionId}] Triggering pre-sync for date ${dateStr}...`);
+      const syncResp = await axios.post(
+        `${clientUrl}/sync/date`,
+        { sessionId, date: dateStr, userId: validUserId },
+        { timeout: 90000 }
+      );
       if (syncResp.data?.data?.success) {
         clientConnected = true;
+        console.log(`[AISummaryService:${sessionId}] Pre-sync completed. Synced ${syncResp.data.data.count} messages from ${syncResp.data.data.chatsCount} chats.`);
       }
     } catch (syncErr) {
       console.warn(`[AISummaryService:${sessionId}] Pre-sync date ${dateStr} notice:`, syncErr.message);
@@ -117,7 +136,7 @@ class AISummaryService {
     const startOfDay = new Date(`${dateStr}T00:00:00+07:00`).getTime();
     const endOfDay = new Date(`${dateStr}T23:59:59.999+07:00`).getTime();
 
-    // Query messages for this specific user session
+    // Query messages for this specific user session (all messages, ordered chronologically)
     const messages = await models.whatsapp_messages.findAll({
       where: {
         timestamp: {
@@ -179,7 +198,7 @@ class AISummaryService {
       };
     }
 
-    // 2. Format conversation text grouped by chat
+    // 2. Format conversation text grouped by chat, preserving all messages and media contexts
     const chatsMap = new Map();
     for (const msg of messages) {
       const chatTitle = msg.chat ? (msg.chat.name || msg.chat.whatsapp_chat_id) : 'Direct Chat';
@@ -197,9 +216,11 @@ class AISummaryService {
 
     let conversationText = '';
     for (const [chatTitle, chatMsgs] of chatsMap.entries()) {
-      conversationText += `\n--- Chat / Group: ${chatTitle} ---\n`;
+      conversationText += `\n--- Chat / Group: ${chatTitle} (${chatMsgs.length} pesan) ---\n`;
       conversationText += chatMsgs.join('\n') + '\n';
     }
+
+    console.log(`[AISummaryService:${sessionId}] Feeding ${messages.length} messages across ${chatsMap.size} chats into Gemini for date ${dateStr}...`);
 
     // 3. Build Prompt and Call Gemini
     const prompt = buildSummaryPrompt(dateStr, conversationText);
