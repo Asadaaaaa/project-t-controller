@@ -116,20 +116,18 @@ class AISummaryService {
 
     // Step 0: Pre-sync messages for this specific date and user session directly from WhatsApp Client with generous timeout
     let clientConnected = false;
-    try {
-      const clientUrl = process.env.WHATSAPP_CLIENT_URL || 'http://localhost:4001';
-      console.log(`[AISummaryService:${sessionId}] Triggering pre-sync for date ${dateStr}...`);
-      const syncResp = await axios.post(
-        `${clientUrl}/sync/date`,
-        { sessionId, date: dateStr, userId: validUserId },
-        { timeout: 90000 }
-      );
-      if (syncResp.data?.data?.success) {
-        clientConnected = true;
-        console.log(`[AISummaryService:${sessionId}] Pre-sync completed. Synced ${syncResp.data.data.count} messages from ${syncResp.data.data.chatsCount} chats.`);
+    if (this.server?.socketHandler) {
+      try {
+        console.log(`[AISummaryService:${sessionId}] Triggering pre-sync for date ${dateStr} via Socket.IO...`);
+        const syncResp = await this.server.socketHandler.sendSyncDate(sessionId, dateStr, validUserId);
+        if (syncResp?.data?.success || syncResp?.success) {
+          clientConnected = true;
+          const syncData = syncResp.data || syncResp;
+          console.log(`[AISummaryService:${sessionId}] Pre-sync completed. Synced ${syncData.count || 0} messages from ${syncData.chatsCount || 0} chats.`);
+        }
+      } catch (syncErr) {
+        console.warn(`[AISummaryService:${sessionId}] Pre-sync date ${dateStr} notice:`, syncErr.message);
       }
-    } catch (syncErr) {
-      console.warn(`[AISummaryService:${sessionId}] Pre-sync date ${dateStr} notice:`, syncErr.message);
     }
 
     // 1. Determine start and end timestamps for the day in milliseconds (Asia/Jakarta is UTC+7)

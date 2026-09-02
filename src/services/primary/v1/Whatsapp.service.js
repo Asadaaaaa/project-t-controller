@@ -23,11 +23,13 @@ class WhatsappService {
     let session = await this.WhatsappRepository.getSession(sessionId);
     let clientStatus = null;
 
-    try {
-      const resp = await axios.get(`${this.clientUrl}/status?sessionId=${sessionId}`, { timeout: 3000 });
-      clientStatus = resp.data;
-    } catch (err) {
-      // client may not be reachable
+    if (this.server?.socketHandler) {
+      try {
+        const resp = await this.server.socketHandler.sendGetStatus(sessionId);
+        clientStatus = resp;
+      } catch (err) {
+        // worker may not be connected or session not initialized yet
+      }
     }
 
     const liveStatus = clientStatus?.data?.status || (session ? session.status : 'disconnected');
@@ -60,9 +62,13 @@ class WhatsappService {
 
   async getQR(userId = null, customSessionId = null) {
     const sessionId = this.getSessionId(userId, customSessionId);
+    if (!this.server?.socketHandler) {
+      return { qr: null, status: 'disconnected', error: 'SocketHandler not initialized' };
+    }
+
     try {
-      const resp = await axios.get(`${this.clientUrl}/qr?sessionId=${sessionId}`, { timeout: 3000 });
-      return resp.data.data;
+      const resp = await this.server.socketHandler.sendGetQR(sessionId);
+      return resp?.data || resp;
     } catch (err) {
       return { qr: null, status: 'disconnected', error: err.message };
     }
@@ -77,9 +83,13 @@ class WhatsappService {
       status: 'connecting'
     });
 
+    if (!this.server?.socketHandler) {
+      return { success: false, message: 'WhatsApp worker is not connected' };
+    }
+
     try {
-      const resp = await axios.post(`${this.clientUrl}/connect`, { sessionId, userId }, { timeout: 5000 });
-      return resp.data;
+      const resp = await this.server.socketHandler.sendConnect(sessionId, userId);
+      return resp;
     } catch (err) {
       return { success: false, message: `Failed to trigger WhatsApp connect: ${err.message}` };
     }
@@ -95,9 +105,13 @@ class WhatsappService {
       phone_number: null
     });
 
+    if (!this.server?.socketHandler) {
+      return { success: false, message: 'WhatsApp worker is not connected' };
+    }
+
     try {
-      const resp = await axios.post(`${this.clientUrl}/disconnect`, { sessionId, userId }, { timeout: 5000 });
-      return resp.data;
+      const resp = await this.server.socketHandler.sendDisconnect(sessionId, userId);
+      return resp;
     } catch (err) {
       return { success: false, message: `Failed to trigger WhatsApp disconnect: ${err.message}` };
     }
@@ -105,10 +119,15 @@ class WhatsappService {
 
   async triggerSync(userId = null, customSessionId = null) {
     const sessionId = this.getSessionId(userId, customSessionId);
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+
+    if (!this.server?.socketHandler) {
+      return { success: false, message: 'WhatsApp worker is not connected' };
+    }
 
     try {
-      const resp = await axios.post(`${this.clientUrl}/sync`, { sessionId, userId }, { timeout: 5000 });
-      return resp.data;
+      const resp = await this.server.socketHandler.sendSyncDate(sessionId, today, userId);
+      return resp;
     } catch (err) {
       return { success: false, message: `Failed to trigger sync: ${err.message}` };
     }

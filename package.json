@@ -18,7 +18,8 @@
         "#controllersPrimaryV1": "./src/controllers/primary/v1/index.js",
         "#validatorsPrimaryV1": "./src/validators/primary/v1/index.js",
         "#repositoriesPrimaryV1": "./src/repositories/primary/v1/index.js",
-        "#servicesPrimaryV1": "./src/services/primary/v1/index.js"
+        "#servicesPrimaryV1": "./src/services/primary/v1/index.js",
+        "#sockets": "./src/sockets/index.js"
     },
     "keywords": [],
     "author": "",
@@ -48,6 +49,7 @@
         "nodemon": "^3.1.7",
         "qrcode": "^1.5.3",
         "sequelize": "^6.37.5",
+        "socket.io": "^4.8.3",
         "zod": "^4.4.3"
     }
 }

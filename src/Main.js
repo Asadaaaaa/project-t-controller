@@ -6,6 +6,7 @@ import MiddlewareHandler from './middlewares/Handler.middleware.js';
 import RouteHandler from './routes/Handler.route.js';
 import ModelHandler from './models/Handler.model.js';
 import JobHandler from './jobs/Handler.job.js';
+import { SocketHandler } from '#sockets';
 
 // Library
 import * as dotenv from 'dotenv';
@@ -13,6 +14,8 @@ import os from 'os';
 import cluster from 'cluster';
 import FS from 'fs-extra';
 import Express from 'express';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 
 class Server {
     constructor() {
@@ -73,11 +76,21 @@ class Server {
         new MiddlewareHandler(this);
         new RouteHandler(this);
 
+        this.httpServer = http.createServer(this.API);
+        this.io = new SocketIOServer(this.httpServer, {
+            cors: {
+                origin: '*',
+                methods: ['GET', 'POST']
+            }
+        });
+
+        this.socketHandler = new SocketHandler(this);
+
         const port = this.env.PORT || 3000;
         const host = this.env.IP || '0.0.0.0';
 
-        this.serverInstance = this.API.listen(port, host, () => {
-            this.sendLogs(`Server Started, Listening http://${host}:${port}`);
+        this.serverInstance = this.httpServer.listen(port, host, () => {
+            this.sendLogs(`Server Started, Listening http://${host}:${port} (REST + Socket.IO)`);
         }).on('error', (err) => {
             if (err.code === 'EADDRINUSE') {
                 this.sendLogs(`Port ${port} is already in use`);
