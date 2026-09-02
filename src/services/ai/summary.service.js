@@ -9,7 +9,8 @@ const TodoItemSchema = z.object({
   description: z.string().nullable().optional(),
   priority: z.enum(['high', 'medium', 'low']).catch('medium'),
   assignee: z.string().nullable().optional(),
-  deadline: z.string().nullable().optional()
+  deadline: z.string().nullable().optional(),
+  source_chat: z.string().nullable().optional()
 });
 
 const SummaryResponseSchema = z.object({
@@ -19,6 +20,15 @@ const SummaryResponseSchema = z.object({
   decisions: z.array(z.string()).catch([]),
   todos: z.array(TodoItemSchema).catch([])
 });
+
+function sortTodosByPriority(todosList = []) {
+  const priorityWeight = { high: 3, medium: 2, low: 1 };
+  return [...todosList].sort((a, b) => {
+    const pA = priorityWeight[(a.priority || 'medium').toLowerCase()] || 0;
+    const pB = priorityWeight[(b.priority || 'medium').toLowerCase()] || 0;
+    return pB - pA;
+  });
+}
 
 function buildMarkdownReport(dateStr, summary, highlights = [], decisions = [], todos = []) {
   let md = `# 📅 Ringkasan Harian WhatsApp — ${dateStr}\n\n`;
@@ -36,13 +46,16 @@ function buildMarkdownReport(dateStr, summary, highlights = [], decisions = [], 
   }
   md += `\n`;
 
-  md += `### 2. ⏳ Yang Harus / Belum Dilakukan (Action Items & To-Do List)\n`;
-  if (todos && todos.length > 0) {
-    todos.forEach((t) => {
+  const sorted = sortTodosByPriority(todos);
+  md += `### 2. ⏳ Yang Harus / Belum Dilakukan (Action Items & To-Do List) (${sorted.length})\n`;
+  md += `*(Diurutkan berdasarkan prioritas: HIGH ➡️ MEDIUM ➡️ LOW)*\n`;
+  if (sorted.length > 0) {
+    sorted.forEach((t) => {
       const priorityTag = (t.priority || 'medium').toUpperCase();
+      const groupTag = t.source_chat ? ` | 👥 Grup/Chat: ${t.source_chat}` : '';
       const assigneeTag = t.assignee ? ` | 👤 @${t.assignee}` : '';
       const deadlineTag = t.deadline ? ` | ⏰ Deadline: ${t.deadline}` : '';
-      md += `- [ ] **${t.title}** [${priorityTag}]${assigneeTag}${deadlineTag}\n`;
+      md += `- [ ] **${t.title}** [${priorityTag}${groupTag}${assigneeTag}${deadlineTag}]\n`;
       if (t.description) {
         md += `  > ${t.description}\n`;
       }
@@ -196,12 +209,15 @@ class AISummaryService {
       };
     }
 
-    // 2. Format conversation text grouped by chat, preserving all messages and media contexts
+    // 2. Format conversation text grouped by chat, clearly labelling Groups and Community chats
     const chatsMap = new Map();
     for (const msg of messages) {
-      const chatTitle = msg.chat ? (msg.chat.name || msg.chat.whatsapp_chat_id) : 'Direct Chat';
-      if (!chatsMap.has(chatTitle)) {
-        chatsMap.set(chatTitle, []);
+      const isGroup = !!msg.chat?.is_group;
+      const rawName = msg.chat ? (msg.chat.name || msg.chat.whatsapp_chat_id) : 'Direct Chat';
+      const chatLabel = isGroup ? `[Grup/Komunitas] ${rawName}` : `[Personal] ${rawName}`;
+
+      if (!chatsMap.has(chatLabel)) {
+        chatsMap.set(chatLabel, []);
       }
       const timeFormatted = new Date(Number(msg.timestamp)).toLocaleTimeString('id-ID', {
         timeZone: 'Asia/Jakarta',
@@ -209,12 +225,12 @@ class AISummaryService {
         minute: '2-digit'
       });
       const sender = msg.is_from_me ? 'Me' : (msg.sender || 'Unknown');
-      chatsMap.get(chatTitle).push(`[${timeFormatted}] (${msg.message_type || 'chat'}) ${sender}: ${msg.message || ''}`);
+      chatsMap.get(chatLabel).push(`[${timeFormatted}] (${msg.message_type || 'chat'}) ${sender}: ${msg.message || ''}`);
     }
 
     let conversationText = '';
-    for (const [chatTitle, chatMsgs] of chatsMap.entries()) {
-      conversationText += `\n--- Chat / Group: ${chatTitle} (${chatMsgs.length} pesan) ---\n`;
+    for (const [chatLabel, chatMsgs] of chatsMap.entries()) {
+      conversationText += `\n--- Chat: ${chatLabel} (${chatMsgs.length} pesan) ---\n`;
       conversationText += chatMsgs.join('\n') + '\n';
     }
 
@@ -234,6 +250,9 @@ class AISummaryService {
     }
 
     const validatedData = SummaryResponseSchema.parse(parsedJson);
+
+    // Sort todos by priority strictly (high -> medium -> low)
+    validatedData.todos = sortTodosByPriority(validatedData.todos || []);
 
     const generatedMarkdown = validatedData.markdown || buildMarkdownReport(
       dateStr,
@@ -268,7 +287,7 @@ class AISummaryService {
       });
     }
 
-    // 6. Store Todos in DB
+    // 6. Store Todos in DB in sorted order
     const createdTodos = [];
     if (validatedData.todos && validatedData.todos.length > 0) {
       for (const todo of validatedData.todos) {
@@ -280,10 +299,15 @@ class AISummaryService {
           }
         }
 
+        let finalDescription = todo.description || '';
+        if (todo.source_chat && !finalDescription.includes(todo.source_chat)) {
+          finalDescription = `[Grup/Chat: ${todo.source_chat}] ${finalDescription}`.trim();
+        }
+
         const savedTodo = await models.daily_todos.create({
           summary_id: savedSummary.id,
           title: todo.title,
-          description: todo.description || null,
+          description: finalDescription || null,
           priority: todo.priority || 'medium',
           status: 'pending',
           assignee: todo.assignee || null,
