@@ -45,6 +45,22 @@ class SocketHandler {
           }
         });
 
+        // 1b. Worker requests excluded contact IDs on startup
+        socket.on('whatsapp:get_contact_exceptions', async (data, callback) => {
+          try {
+            const ConfigServiceClass = (await import('../services/primary/v1/Config.service.js')).default;
+            const configService = new ConfigServiceClass(this.server);
+            const excludedIds = await configService.getAllExcludedChatIds();
+            if (typeof callback === 'function') {
+              callback({ success: true, data: excludedIds });
+            }
+          } catch (err) {
+            if (typeof callback === 'function') {
+              callback({ success: false, error: err.message, data: [] });
+            }
+          }
+        });
+
         // 2. Worker notifies session status change
         socket.on('whatsapp:session_updated', async (data, callback) => {
           try {
@@ -239,6 +255,13 @@ class SocketHandler {
 
   async sendGetChats(sessionId, userId = null) {
     return this.emitWithTimeout('whatsapp:get_chats', { sessionId, userId }, 15000);
+  }
+
+  broadcastContactExceptions(excludedList = []) {
+    this.server.sendLogs(`[SocketHandler] Broadcasting ${excludedList.length} excluded contact(s) to worker(s)`);
+    for (const socket of this.workerSockets) {
+      socket.emit('whatsapp:contact_exceptions_updated', { excludedChatIds: excludedList });
+    }
   }
 }
 

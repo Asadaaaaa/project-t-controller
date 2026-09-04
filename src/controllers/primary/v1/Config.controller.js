@@ -42,6 +42,37 @@ class ConfigController {
       return res.status(500).json(this.ResponsePreset.resErr(500, err.message, 'service', null));
     }
   }
+
+  async getContactExceptions(req, res) {
+    try {
+      const userId = this.getUserId(req);
+      const list = await this.ConfigService.getContactExceptions(userId);
+      return res.status(200).json(this.ResponsePreset.resOK('OK', list));
+    } catch (err) {
+      return res.status(500).json(this.ResponsePreset.resErr(500, err.message, 'service', null));
+    }
+  }
+
+  async addContactException(req, res) {
+    try {
+      const userId = this.getUserId(req);
+      const created = await this.ConfigService.addContactException(userId, req.body);
+      return res.status(201).json(this.ResponsePreset.resOK('Kontak berhasil ditambahkan ke daftar pengecualian', created));
+    } catch (err) {
+      return res.status(400).json(this.ResponsePreset.resErr(400, err.message, 'service', null));
+    }
+  }
+
+  async removeContactException(req, res) {
+    try {
+      const userId = this.getUserId(req);
+      const { id } = req.params;
+      const result = await this.ConfigService.removeContactException(userId, id);
+      return res.status(200).json(this.ResponsePreset.resOK('Kontak berhasil dihapus dari daftar pengecualian', result));
+    } catch (err) {
+      return res.status(400).json(this.ResponsePreset.resErr(400, err.message, 'service', null));
+    }
+  }
 }
 
 export default ConfigController;

@@ -214,6 +214,133 @@ export class ConfigService {
       sendResult
     };
   }
+
+  /**
+   * Get all excluded contact records
+   */
+  async getContactExceptions(userId = null) {
+    const list = await this.models.contact_exceptions.findAll({
+      where: userId ? { user_id: userId } : {},
+      order: [['created_at', 'DESC']]
+    });
+    return list.map(item => item.toJSON());
+  }
+
+  /**
+   * Helper: Get list of excluded chat IDs / phone numbers
+   */
+  async getAllExcludedChatIds(userId = null) {
+    const list = await this.models.contact_exceptions.findAll({
+      where: userId ? { user_id: userId } : {},
+      attributes: ['whatsapp_chat_id', 'phone_number']
+    });
+    const ids = [];
+    for (const item of list) {
+      if (item.whatsapp_chat_id) ids.push(String(item.whatsapp_chat_id));
+      if (item.phone_number) ids.push(String(item.phone_number));
+    }
+    return [...new Set(ids)];
+  }
+
+  /**
+   * Notify WhatsApp worker(s) about updated contact exceptions list
+   */
+  async notifyWorkerContactExceptions() {
+    try {
+      const excludedIds = await this.getAllExcludedChatIds();
+      if (this.server?.socketHandler?.broadcastContactExceptions) {
+        this.server.socketHandler.broadcastContactExceptions(excludedIds);
+      }
+    } catch (e) {
+      this.server.sendLogs(`[ConfigService] Error notifying workers of contact exceptions: ${e.message}`);
+    }
+  }
+
+  /**
+   * Add one or multiple contacts to the exception list
+   */
+  async addContactException(userId = null, data = {}) {
+    const items = Array.isArray(data) ? data : [data];
+    const results = [];
+
+    for (const item of items) {
+      const {
+        whatsapp_chat_id,
+        contact_name,
+        phone_number,
+        chat_type = 'contact',
+        reason
+      } = item;
+
+      if (!whatsapp_chat_id) {
+        continue;
+      }
+
+      const cleanChatId = String(whatsapp_chat_id).trim();
+
+      // Check if already exists (including soft-deleted)
+      const existing = await this.models.contact_exceptions.findOne({
+        where: {
+          whatsapp_chat_id: cleanChatId,
+          ...(userId ? { user_id: userId } : {})
+        },
+        paranoid: false
+      });
+
+      if (existing) {
+        if (existing.deleted_at) {
+          await existing.restore();
+        }
+        await existing.update({
+          contact_name: contact_name || existing.contact_name,
+          phone_number: phone_number || existing.phone_number,
+          chat_type: chat_type || existing.chat_type,
+          reason: reason !== undefined ? reason : existing.reason
+        });
+        results.push(existing.toJSON());
+      } else {
+        const created = await this.models.contact_exceptions.create({
+          user_id: userId || null,
+          whatsapp_chat_id: cleanChatId,
+          contact_name: contact_name || cleanChatId,
+          phone_number: phone_number || (cleanChatId.includes('@') ? cleanChatId.split('@')[0] : cleanChatId),
+          chat_type: chat_type || (cleanChatId.endsWith('@g.us') ? 'group' : 'contact'),
+          reason: reason || null
+        });
+        results.push(created.toJSON());
+      }
+    }
+
+    // Broadcast updated exceptions to WhatsApp worker
+    await this.notifyWorkerContactExceptions();
+
+    return Array.isArray(data) ? results : (results[0] || null);
+  }
+
+  /**
+   * Remove contact from exception list by ID
+   */
+  async removeContactException(userId = null, id) {
+    if (!id) throw new Error('ID kontak pengecualian harus disediakan');
+
+    const item = await this.models.contact_exceptions.findOne({
+      where: {
+        id,
+        ...(userId ? { user_id: userId } : {})
+      }
+    });
+
+    if (!item) {
+      throw new Error('Data kontak pengecualian tidak ditemukan');
+    }
+
+    await item.destroy();
+
+    // Broadcast updated exceptions to WhatsApp worker
+    await this.notifyWorkerContactExceptions();
+
+    return { success: true, id };
+  }
 }
 
 export default ConfigService;

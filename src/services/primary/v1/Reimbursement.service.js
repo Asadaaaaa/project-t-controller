@@ -43,6 +43,37 @@ class ReimbursementService {
 
     this.server.sendLogs(`[ReimbursementService] Processing reimbursement msg: ${whatsapp_message_id}`);
 
+    // Check if chat or sender is excluded by Contact Exceptional config
+    try {
+      const models = this.server.model.models;
+      if (models?.contact_exceptions) {
+        const { Op } = await import('sequelize');
+        const candidates = [];
+        if (chat_id) {
+          candidates.push(String(chat_id));
+          if (String(chat_id).includes('@')) candidates.push(String(chat_id).split('@')[0]);
+        }
+        if (sender_phone) {
+          candidates.push(String(sender_phone));
+          if (String(sender_phone).includes('@')) candidates.push(String(sender_phone).split('@')[0]);
+        }
+        if (candidates.length > 0) {
+          const isExcluded = await models.contact_exceptions.findOne({
+            where: {
+              [Op.or]: [
+                { whatsapp_chat_id: { [Op.in]: candidates } },
+                { phone_number: { [Op.in]: candidates } }
+              ]
+            }
+          });
+          if (isExcluded) {
+            this.server.sendLogs(`[ReimbursementService] ⛔ Reimbursement rejected: Chat/Sender ${chat_id} is in Contact Exceptional list.`);
+            return { success: false, skipped: true, reason: 'contact_excluded' };
+          }
+        }
+      }
+    } catch (checkErr) {}
+
     // Format penamaan file sesuai instruksi:
     // reimburse: reimburse-{idpesan}
     // requesan: req-{idpesan}

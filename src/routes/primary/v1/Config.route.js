@@ -34,6 +34,27 @@ class ConfigRoute {
       this.Authorization.check(),
       (req, res) => this.ConfigController.testSendSummary(req, res)
     );
+
+    // Get contact exceptions
+    this.API.get(
+      this.endpointPrefix + '/contact-exceptions',
+      this.Authorization.check(),
+      (req, res) => this.ConfigController.getContactExceptions(req, res)
+    );
+
+    // Add contact exception(s)
+    this.API.post(
+      this.endpointPrefix + '/contact-exceptions',
+      this.Authorization.check(),
+      (req, res) => this.ConfigController.addContactException(req, res)
+    );
+
+    // Remove contact exception by ID
+    this.API.delete(
+      this.endpointPrefix + '/contact-exceptions/:id',
+      this.Authorization.check(),
+      (req, res) => this.ConfigController.removeContactException(req, res)
+    );
   }
 }
 

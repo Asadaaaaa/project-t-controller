@@ -147,6 +147,27 @@ class AISummaryService {
     const startOfDay = new Date(`${dateStr}T00:00:00+07:00`).getTime();
     const endOfDay = new Date(`${dateStr}T23:59:59.999+07:00`).getTime();
 
+    // Query excluded contacts / chats to ensure they are NOT read for summary
+    let excludedChatIds = [];
+    try {
+      if (models.contact_exceptions) {
+        const exceptions = await models.contact_exceptions.findAll({
+          where: validUserId ? { user_id: validUserId } : {},
+          attributes: ['whatsapp_chat_id', 'phone_number']
+        });
+        for (const ex of exceptions) {
+          if (ex.whatsapp_chat_id) excludedChatIds.push(String(ex.whatsapp_chat_id));
+          if (ex.phone_number) excludedChatIds.push(String(ex.phone_number));
+        }
+        excludedChatIds = [...new Set(excludedChatIds)];
+      }
+    } catch (e) {}
+
+    const chatWhere = { session_id: sessionId };
+    if (excludedChatIds.length > 0) {
+      chatWhere.whatsapp_chat_id = { [Op.notIn]: excludedChatIds };
+    }
+
     // Query messages for this specific user session (all messages, ordered chronologically)
     const messages = await models.whatsapp_messages.findAll({
       where: {
@@ -159,7 +180,7 @@ class AISummaryService {
         {
           model: models.whatsapp_chats,
           as: 'chat',
-          where: { session_id: sessionId },
+          where: chatWhere,
           attributes: ['id', 'name', 'whatsapp_chat_id', 'is_group']
         }
       ],

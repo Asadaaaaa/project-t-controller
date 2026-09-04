@@ -12,6 +12,7 @@ import DailySummariesModel from './DailySummaries.model.js';
 import DailyTodosModel from './DailyTodos.model.js';
 import WhatsappReimbursementsModel from './WhatsappReimbursements.model.js';
 import AutoSummaryConfigsModel from './AutoSummaryConfigs.model.js';
+import ContactExceptionsModel from './ContactExceptions.model.js';
 
 
 class Handler {
@@ -59,6 +60,7 @@ class Handler {
         const dailyTodos = DailyTodosModel(this.db);
         const whatsappReimbursements = WhatsappReimbursementsModel(this.db);
         const autoSummaryConfigs = AutoSummaryConfigsModel(this.db);
+        const contactExceptions = ContactExceptionsModel(this.db);
 
         // Auto-create table if not exists
         whatsappReimbursements.sync({ alter: true }).catch((err) => {
@@ -67,6 +69,10 @@ class Handler {
 
         autoSummaryConfigs.sync({ alter: true }).catch((err) => {
             this.server.sendLogs(`[ModelHandler] Error syncing auto_summary_configs: ${err.message}`);
+        });
+
+        contactExceptions.sync({ alter: true }).catch((err) => {
+            this.server.sendLogs(`[ModelHandler] Error syncing contact_exceptions: ${err.message}`);
         });
 
         // Associations
@@ -100,6 +106,9 @@ class Handler {
         autoSummaryConfigs.belongsTo(users, { foreignKey: 'user_id', as: 'user' });
         users.hasOne(autoSummaryConfigs, { foreignKey: 'user_id', as: 'auto_summary_config' });
 
+        contactExceptions.belongsTo(users, { foreignKey: 'user_id', as: 'user' });
+        users.hasMany(contactExceptions, { foreignKey: 'user_id', as: 'contact_exceptions' });
+
         this.models = {
             users,
             roles,
@@ -114,7 +123,9 @@ class Handler {
             whatsapp_reimbursements: whatsappReimbursements,
             WhatsappReimbursements: whatsappReimbursements,
             auto_summary_configs: autoSummaryConfigs,
-            AutoSummaryConfigs: autoSummaryConfigs
+            AutoSummaryConfigs: autoSummaryConfigs,
+            contact_exceptions: contactExceptions,
+            ContactExceptions: contactExceptions
         };
     }
 }

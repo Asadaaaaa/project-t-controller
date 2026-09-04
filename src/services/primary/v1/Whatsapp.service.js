@@ -183,6 +183,41 @@ class WhatsappService {
   }
 
   /**
+   * Helper: Check if chat/contact is in contact_exceptions
+   */
+  async isContactExcluded(chatId, sender) {
+    try {
+      const models = this.server.model.models;
+      if (!models?.contact_exceptions) return false;
+
+      const candidates = [];
+      if (chatId) {
+        candidates.push(String(chatId));
+        if (String(chatId).includes('@')) candidates.push(String(chatId).split('@')[0]);
+      }
+      if (sender) {
+        candidates.push(String(sender));
+        if (String(sender).includes('@')) candidates.push(String(sender).split('@')[0]);
+      }
+
+      if (candidates.length === 0) return false;
+
+      const { Op } = await import('sequelize');
+      const match = await models.contact_exceptions.findOne({
+        where: {
+          [Op.or]: [
+            { whatsapp_chat_id: { [Op.in]: candidates } },
+            { phone_number: { [Op.in]: candidates } }
+          ]
+        }
+      });
+      return !!match;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
    * Internal webhook: store batch of chats and messages
    */
   async handleSyncBatch(data) {
@@ -193,6 +228,11 @@ class WhatsappService {
     for (const chatItem of chats) {
       const chatId = chatItem.whatsapp_chat_id || chatItem.id;
       if (!chatId) continue;
+
+      // Skip excluded contact/chat
+      if (await this.isContactExcluded(chatId, chatItem.phoneNumber || chatItem.phone_number)) {
+        continue;
+      }
 
       try {
         const chat = await this.WhatsappRepository.upsertChat(sessionId, {
@@ -251,6 +291,11 @@ class WhatsappService {
 
     const chatId = chatData.whatsapp_chat_id || chatData.id;
     if (!chatId) return { duplicate: false, skipped: true };
+
+    // Skip excluded contact/chat
+    if (await this.isContactExcluded(chatId, msgData.sender || chatData.phoneNumber)) {
+      return { duplicate: false, skipped: true, reason: 'contact_excluded' };
+    }
 
     const chat = await this.WhatsappRepository.upsertChat(sessionId, {
       whatsapp_chat_id: String(chatId),
