@@ -68,6 +68,7 @@ async function resetDatabase() {
     const tablesToTruncate = [
       'daily_todos',
       'daily_summaries',
+      'whatsapp_reimbursements',
       'whatsapp_messages',
       'whatsapp_chats',
       'whatsapp_sessions',

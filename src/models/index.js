@@ -9,3 +9,4 @@ export { default as WhatsappChatsModel } from "./WhatsappChats.model.js";
 export { default as WhatsappMessagesModel } from "./WhatsappMessages.model.js";
 export { default as DailySummariesModel } from "./DailySummaries.model.js";
 export { default as DailyTodosModel } from "./DailyTodos.model.js";
+export { default as WhatsappReimbursementsModel } from "./WhatsappReimbursements.model.js";

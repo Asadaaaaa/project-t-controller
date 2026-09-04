@@ -129,6 +129,11 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-# Ignore directories inside 'app/', but not files directly inside 'app/'.
-/storage/app/*/
+# Storage
+/storage/app/*/*
+!/storage/app/*/init
+/storage/app/reimbursement/*
+!/storage/app/reimbursement/init
+public/uploads/
+
 

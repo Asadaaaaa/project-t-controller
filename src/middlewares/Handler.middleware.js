@@ -4,6 +4,7 @@ import { FileSystemHelper, ResponsePresetHelper } from '#helpers';
 import Express from 'express';
 import Morgan from 'morgan';
 import cors from 'cors';
+import path from 'path';
 
 class Handler {
     constructor(server) {
@@ -21,6 +22,9 @@ class Handler {
           methods: ['GET', 'PUT', 'POST', 'DELETE', 'PATCH'],
           origin: this.server.env.MIDDLEWARE_ORIGIN || '*'
       }));
+
+      // Static files for uploaded media (e.g. WhatsApp receipts and reimbursement proofs)
+      this.API.use('/uploads', Express.static(path.join(process.cwd(), 'public', 'uploads')));
 
       // API Version check for versioned routes e.g. /primary/v1/...
       this.API.use('/primary/:apiVersion', async (req, res, next) => {

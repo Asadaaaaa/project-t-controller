@@ -6,13 +6,15 @@ import {
   WhatsappRoute,
   SummaryRoute,
   TodoRoute,
-  DashboardRoute
+  DashboardRoute,
+  ReimbursementRoute
 } from '#routesPrimaryV1';
 
 class PrimaryHandlerV1 {
   constructor(server) {
     this.server = server;
     this.initRoutes('/primary/v1');
+    this.initRoutes('/api/v1');
     this.initRoutes('/api');
   }
 
@@ -25,6 +27,7 @@ class PrimaryHandlerV1 {
     new SummaryRoute(this.server, prefix);
     new TodoRoute(this.server, prefix);
     new DashboardRoute(this.server, prefix);
+    new ReimbursementRoute(this.server, prefix);
   }
 }
 

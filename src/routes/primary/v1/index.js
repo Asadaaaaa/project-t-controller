@@ -6,3 +6,4 @@ export { default as WhatsappRoute } from './Whatsapp.route.js';
 export { default as SummaryRoute } from './Summary.route.js';
 export { default as TodoRoute } from './Todo.route.js';
 export { default as DashboardRoute } from './Dashboard.route.js';
+export { default as ReimbursementRoute } from './Reimbursement.route.js';

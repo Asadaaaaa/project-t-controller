@@ -4,3 +4,4 @@ export { default as PermissionRepository } from './Permission.repository.js';
 export { default as WhatsappRepository } from './Whatsapp.repository.js';
 export { default as SummaryRepository } from './Summary.repository.js';
 export { default as TodoRepository } from './Todo.repository.js';
+export { default as ReimbursementRepository } from './Reimbursement.repository.js';
