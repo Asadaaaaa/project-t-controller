@@ -135,6 +135,28 @@ class WhatsappService {
 
   async getAllChats(userId = null, customSessionId = null) {
     const sessionId = this.getSessionId(userId, customSessionId);
+
+    // Ambil daftar chat & grup langsung dari WhatsApp client jika sedang connected
+    if (this.server?.socketHandler?.isWorkerConnected()) {
+      try {
+        const resp = await this.server.socketHandler.sendGetChats(sessionId, userId);
+        if (resp && resp.success && Array.isArray(resp.data) && resp.data.length > 0) {
+          for (const item of resp.data) {
+            if (item.id) {
+              await this.WhatsappRepository.upsertChat(sessionId, {
+                whatsapp_chat_id: String(item.id),
+                name: item.name || item.id,
+                is_group: !!item.isGroup,
+                phone_number: item.phoneNumber || null
+              });
+            }
+          }
+        }
+      } catch (err) {
+        // Fallback langsung ke database jika socket timeout/error
+      }
+    }
+
     return this.WhatsappRepository.getAllChats(sessionId);
   }
 

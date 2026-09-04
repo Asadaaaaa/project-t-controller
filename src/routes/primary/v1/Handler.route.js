@@ -7,7 +7,8 @@ import {
   SummaryRoute,
   TodoRoute,
   DashboardRoute,
-  ReimbursementRoute
+  ReimbursementRoute,
+  ConfigRoute
 } from '#routesPrimaryV1';
 
 class PrimaryHandlerV1 {
@@ -28,6 +29,7 @@ class PrimaryHandlerV1 {
     new TodoRoute(this.server, prefix);
     new DashboardRoute(this.server, prefix);
     new ReimbursementRoute(this.server, prefix);
+    new ConfigRoute(this.server, prefix);
   }
 }
 

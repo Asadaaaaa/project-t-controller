@@ -6,4 +6,5 @@ export { default as WhatsappController } from './Whatsapp.controller.js';
 export { default as SummaryController } from './Summary.controller.js';
 export { default as TodoController } from './Todo.controller.js';
 export { default as DashboardController } from './Dashboard.controller.js';
-export { default as ReimbursementController } from './Reimbursement.controller.js';
+export { default as ReimbursementController } from './Reimbursement.controller.js';
+export { default as ConfigController } from './Config.controller.js';

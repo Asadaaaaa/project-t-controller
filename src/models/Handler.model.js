@@ -11,6 +11,7 @@ import WhatsappMessagesModel from './WhatsappMessages.model.js';
 import DailySummariesModel from './DailySummaries.model.js';
 import DailyTodosModel from './DailyTodos.model.js';
 import WhatsappReimbursementsModel from './WhatsappReimbursements.model.js';
+import AutoSummaryConfigsModel from './AutoSummaryConfigs.model.js';
 
 
 class Handler {
@@ -57,10 +58,15 @@ class Handler {
         const dailySummaries = DailySummariesModel(this.db);
         const dailyTodos = DailyTodosModel(this.db);
         const whatsappReimbursements = WhatsappReimbursementsModel(this.db);
+        const autoSummaryConfigs = AutoSummaryConfigsModel(this.db);
 
         // Auto-create table if not exists
         whatsappReimbursements.sync({ alter: true }).catch((err) => {
             this.server.sendLogs(`[ModelHandler] Error syncing whatsapp_reimbursements: ${err.message}`);
+        });
+
+        autoSummaryConfigs.sync({ alter: true }).catch((err) => {
+            this.server.sendLogs(`[ModelHandler] Error syncing auto_summary_configs: ${err.message}`);
         });
 
         // Associations
@@ -91,6 +97,9 @@ class Handler {
         dailySummaries.hasMany(dailyTodos, { foreignKey: 'summary_id', as: 'todos' });
         dailyTodos.belongsTo(dailySummaries, { foreignKey: 'summary_id', as: 'summary' });
 
+        autoSummaryConfigs.belongsTo(users, { foreignKey: 'user_id', as: 'user' });
+        users.hasOne(autoSummaryConfigs, { foreignKey: 'user_id', as: 'auto_summary_config' });
+
         this.models = {
             users,
             roles,
@@ -103,7 +112,9 @@ class Handler {
             daily_summaries: dailySummaries,
             daily_todos: dailyTodos,
             whatsapp_reimbursements: whatsappReimbursements,
-            WhatsappReimbursements: whatsappReimbursements
+            WhatsappReimbursements: whatsappReimbursements,
+            auto_summary_configs: autoSummaryConfigs,
+            AutoSummaryConfigs: autoSummaryConfigs
         };
     }
 }

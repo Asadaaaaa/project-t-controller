@@ -232,6 +232,14 @@ class SocketHandler {
   async sendSyncDate(sessionId, date, userId) {
     return this.emitWithTimeout('whatsapp:sync_date', { sessionId, date, userId }, 90000);
   }
+
+  async sendSendMessage(sessionId, chatId, message, userId = null) {
+    return this.emitWithTimeout('whatsapp:send_message', { sessionId, chatId, message, userId }, 25000);
+  }
+
+  async sendGetChats(sessionId, userId = null) {
+    return this.emitWithTimeout('whatsapp:get_chats', { sessionId, userId }, 15000);
+  }
 }
 
 export default SocketHandler;

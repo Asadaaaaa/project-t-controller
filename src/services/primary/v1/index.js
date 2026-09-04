@@ -6,4 +6,5 @@ export { default as WhatsappService } from './Whatsapp.service.js';
 export { default as SummaryService } from './Summary.service.js';
 export { default as TodoService } from './Todo.service.js';
 export { default as DashboardService } from './Dashboard.service.js';
-export { default as ReimbursementService } from './Reimbursement.service.js';
+export { default as ReimbursementService } from './Reimbursement.service.js';
+export { default as ConfigService } from './Config.service.js';

@@ -1,4 +1,5 @@
 import DailySummaryJob from './dailySummary.job.js';
+import AutoSendSummaryJob from './autoSendSummary.job.js';
 
 class JobHandler {
   constructor(server) {
@@ -8,6 +9,7 @@ class JobHandler {
 
   init() {
     new DailySummaryJob(this.server);
+    new AutoSendSummaryJob(this.server);
   }
 }
 
